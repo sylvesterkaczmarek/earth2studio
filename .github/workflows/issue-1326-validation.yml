@@ -1,0 +1,46 @@
+name: Issue 1326 isolated validation
+on:
+  push:
+    branches: [validation/issue-1326-20261107]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.repository == 'sylvesterkaczmarek/earth2studio'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect relevant checked-in guidance and rename surface
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          files = subprocess.check_output(['git', 'ls-files'], text=True).splitlines()
+          for name in ['.agents/rules/e2s-000-python-style-guide.mdc', '.agents/rules/e2s-002-api-documentation.mdc', '.agents/rules/e2s-003-unit-testing.mdc', 'pyproject.toml', '.pre-commit-config.yaml', 'Makefile', '.github/PULL_REQUEST_TEMPLATE.md']:
+              p = Path(name)
+              if p.is_file():
+                  print('\nFILE', name, '\n', p.read_text()[:30000])
+          for name in files:
+              p = Path(name)
+              if p.suffix not in ('.py', '.md', '.rst', '.yaml', '.yml', '.toml'):
+                  continue
+              text = p.read_text()
+              if 'EarthMover' not in text:
+                  continue
+              print('\nRENAME_FILE', name)
+              if 'test' in name or name.endswith('__init__.py'):
+                  print(text[:42000])
+              else:
+                  for i, line in enumerate(text.splitlines(), 1):
+                      if 'EarthMover' in line:
+                          print(i, line)
+          for name in files:
+              if name.endswith('conftest.py') and ('test' in name):
+                  print('\nFIXTURES', name, '\n', Path(name).read_text()[:10000])
+          PY
